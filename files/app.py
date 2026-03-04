@@ -1,4 +1,7 @@
 """
+pip install flask flask-cors Pillow
+TODO: Improve speed by caching thumbnails and metadata, and by using a more efficient image processing library if needed.
+
 Photo Gallery Backend
 Run on your laptop: python3 app.py
 """
