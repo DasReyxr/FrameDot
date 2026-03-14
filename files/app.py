@@ -20,9 +20,10 @@ app = Flask(__name__)
 CORS(app)
 
 # --- CONFIGURATION ---
-PHOTOS_DIR = os.environ.get('PHOTOS_DIR', r'\\100.85.128.110\fotos')  # Change this!
+PHOTOS_DIR = os.environ.get('PHOTOS_DIR', r'\\100.85.128.110\\fotos\\nastst')  # Change this!
 CACHE_DIR = os.path.join(os.path.dirname(__file__), '.thumb_cache')
-THUMBNAIL_SIZE = (400, 400)
+THUMBNAIL_SIZE = (250, 250)  # Smaller = faster over slow connections
+THUMB_QUALITY = 70           # Lower quality = smaller file size (~8-12KB each)
 SUPPORTED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.tiff', '.tif'}
 
 os.makedirs(CACHE_DIR, exist_ok=True)
@@ -39,7 +40,7 @@ def generate_thumbnail(photo_path):
         with Image.open(photo_path) as img:
             img = img.convert('RGB')
             img.thumbnail(THUMBNAIL_SIZE, Image.LANCZOS)
-            img.save(thumb_path, 'JPEG', quality=80)
+            img.save(thumb_path, 'JPEG', quality=THUMB_QUALITY, optimize=True)
         return thumb_path
     except Exception as e:
         print(f"Error generating thumbnail for {photo_path}: {e}")
@@ -68,13 +69,13 @@ def index():
 def get_albums():
     albums = []
     photos_path = Path(PHOTOS_DIR)
-    
+    """ DEBUG STUFF
     print(f"DEBUG: Checking path: {photos_path}")
     print(f"DEBUG: Path exists: {photos_path.exists()}")
     
     if not photos_path.exists():
         return jsonify({'error': f'Photos directory not found: {PHOTOS_DIR}'}), 404
-
+    """
     # Root-level photos as "Unsorted" album
     root_photos = [f for f in photos_path.iterdir() 
                    if f.is_file() and f.suffix.lower() in SUPPORTED_EXTENSIONS]
@@ -170,8 +171,9 @@ def get_thumbnail():
     thumb = generate_thumbnail(path)
     if not thumb:
         return jsonify({'error': 'Could not generate thumbnail'}), 500
-    return send_file(thumb, mimetype='image/jpeg')
-
+    response = send_file(thumb, mimetype='image/jpeg')
+    response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+    return response
 @app.route('/api/photo')
 def get_photo():
     path = request.args.get('path')
@@ -179,8 +181,9 @@ def get_photo():
         return jsonify({'error': 'Not found'}), 404
     if not os.path.abspath(path).startswith(os.path.abspath(PHOTOS_DIR)):
         return jsonify({'error': 'Forbidden'}), 403
-    return send_file(path)
-
+    response = send_file(path)
+    response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+    return response
 if __name__ == '__main__':
     print(f"📸 Photo Gallery Backend")
     print(f"   Photos directory: {PHOTOS_DIR}")

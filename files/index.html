@@ -572,9 +572,32 @@
 
 <script>
 // ── CONFIG ──
-// Use empty string for same-origin requests (works with any IP/localhost)
+// Empty means same-origin, so this works on localhost and LAN/Tailscale URLs
 const API_BASE = '';
 
+// ── CONCURRENCY QUEUE ──
+// Max 4 simultaneous image requests — prevents saturating slow upload connections
+const MAX_CONCURRENT = 4;
+let activeLoads = 0;
+const loadQueue = [];
+
+function queueImageLoad(img, src) {
+  loadQueue.push({ img, src });
+  processQueue();
+}
+
+function processQueue() {
+  while (activeLoads < MAX_CONCURRENT && loadQueue.length > 0) {
+    const { img, src } = loadQueue.shift();
+    activeLoads++;
+    img.src = src;
+    img.onload = img.onerror = () => {
+      img.classList.add('loaded');
+      activeLoads--;
+      processQueue();
+    };
+  }
+}
 // ── STATE ──
 let albums = [];
 let currentAlbum = null;
@@ -687,7 +710,7 @@ async function openAlbum(album) {
 
 async function fetchPhotos() {
   try {
-    const res = await fetch(`${API_BASE}/api/photos?album=${encodeURIComponent(currentAlbum.id)}&page=${currentPage}&per_page=50`);
+    const res = await fetch(`${API_BASE}/api/photos?album=${encodeURIComponent(currentAlbum.id)}&page=${currentPage}&per_page=20`);
     const data = await res.json();
     totalPages = data.pages;
     currentPhotos = currentPhotos.concat(data.photos);
@@ -733,12 +756,11 @@ function renderPhotos(photos) {
     const observer = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
         if (entry.isIntersecting) {
-          img.src = img.dataset.src;
-          img.onload = () => img.classList.add('loaded');
-          observer.disconnect();
+            queueImageLoad(img, img.dataset.src);
+            observer.disconnect();
         }
       });
-    }, { rootMargin: '200px' });
+    }, { rootMargin: '300px' });
     observer.observe(img);
   });
 }
