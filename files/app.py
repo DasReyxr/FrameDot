@@ -21,7 +21,7 @@ CORS(app)
 
 # --- CONFIGURATION ---
 PHOTOS_DIR = os.environ.get('PHOTOS_DIR', r'\\100.85.128.110\\fotos\\nastst')  # Change this!
-CACHE_DIR = os.path.join(os.path.dirname(__file__), '.thumb_cache')
+CACHE_DIR = os.path.join(PHOTOS_DIR, '.thumb_cache')  # Store thumbnails on NAS alongside photos
 THUMBNAIL_SIZE = (250, 250)  # Smaller = faster over slow connections
 THUMB_QUALITY = 70           # Lower quality = smaller file size (~8-12KB each)
 SUPPORTED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.tiff', '.tif'}
